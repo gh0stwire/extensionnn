@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Mail Helper",
+  "version": "1.0",
+  "description": "Extract and summarize emails",
+
+  "permissions": ["storage"],
+
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"]
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
