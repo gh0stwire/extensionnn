@@ -1,0 +1,419 @@
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f8fafc;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent-dark: #020617;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 380px;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------------- Header ---------------- */
+
+.header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ---------------- Accordion ---------------- */
+
+.accordion {
+  padding: 10px;
+}
+
+.accordion-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.accordion-header {
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.accordion-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #555;
+  border-bottom: 2px solid #555;
+  transform: rotate(45deg);
+  transition: transform 0.25s ease;
+}
+
+.accordion-item.active .chevron {
+  transform: rotate(-135deg);
+}
+
+/* ---------------- Content ---------------- */
+
+.accordion-content {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 16px;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.accordion-item.active .accordion-content {
+  max-height: 700px;
+  padding: 16px;
+}
+
+/* ---------------- Summary Styling ---------------- */
+
+.summary-accordion .accordion-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary-placeholder {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.summary-card {
+  background: #ffffff;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.summary-list {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.summary-list li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+/* ---------------- Controls ---------------- */
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.full-select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  font-size: 14px;
+}
+
+/* ---------------- Button ---------------- */
+
+.primary-btn.large-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(180deg, #020617, #020617);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-btn.large-btn:hover {
+  opacity: 0.9;
+}
+
+/* ================= Primary Button Hover Lift ================= */
+
+.primary-btn.large-btn {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary-btn.large-btn:hover {
+  transform: translateY(-2px); /* subtle lift */
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.primary-btn.large-btn:active {
+  transform: translateY(0); /* press back down */
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* ---------------- Text ---------------- */
+
+.muted {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Per-section status text ---------- */
+.status-text {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* ================================================================= */
+/* ================= ADD TO CALENDAR (APPENDED) ===================== */
+/* ================================================================= */
+
+.calendar-helper {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.calendar-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #ffffff;
+}
+
+.calendar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.calendar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.calendar-row span {
+  color: var(--muted);
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+  stroke: #6b7280;
+  flex-shrink: 0;
+}
+
+/* ================================================================= */
+/* ================= COMPOSE MAIL (NEW ADDITION) ==================== */
+/* ================================================================= */
+
+#composeIntent {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  font-size: 14px;
+  margin-bottom: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ================= Reply Prompt Input ================= */
+
+#replyPrompt {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  font-size: 14px;
+  margin-bottom: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  margin-top: 4px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.field-group {
+  margin-bottom: 10px;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+textarea.edit-input {
+  resize: vertical;
+  min-height: 50px;
+}
+
+/* Hover effect for accordion headers (safe version) */
+.accordion-header:hover {
+  background-color: #111;
+  color: #fff;
+}
+
+/* Ensure icons inherit text color */
+.accordion-header:hover svg {
+  stroke: currentColor;
+}
+
+/* Manual Entry Button styling from version 2 */
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+#manualEntry {
+  background-color: #000000 !important; 
+  color: #ffffff !important;           
+  border: 1px solid #333;             
+  font-weight: 600;                   
+  cursor: pointer;
+}
+
+#manualEntry:hover {
+  background-color: #222222 !important; 
+}
+
+/* Back Button styling from version 2 */
+#backToOptions {
+  background: none;
+  border: none;
+  color: #666666; 
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  padding: 0;
+  transition: color 0.2s ease;
+  margin-top: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+#backToOptions:hover {
+  color: #000000; 
+}
+
+#backToOptions svg {
+  margin-right: 4px;
+  stroke: currentColor; 
+}
+
+.accordion-item.active .accordion-content {
+  max-height: 450px; 
+  padding: 16px;
+  overflow-y: auto; 
+}
+
+.accordion-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.accordion-content::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 10px;
+}
+/* --- SHORTEN & FORMALIZE BUTTON STYLING --- */
+#shortenReply, #formalizeReply {
+  background: #000000 !important; /* Black background */
+  color: #ffffff !important;      /* White text */
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+#shortenReply:hover, #formalizeReply:hover {
+  opacity: 0.8; /* Subtle hover effect */
+}
+
+/* --- AI OUTPUT STYLING (REPLY & COMPOSE) --- */
+#reply-result pre, 
+#compose-result pre {
+  margin: 0;
+  white-space: pre-wrap;      /* Ensures text wraps and doesn't overflow horizontally */
+  word-break: break-word;     /* Breaks long words if necessary */
+  font-family: 'Inter', sans-serif; /* Matches your body font */
+  font-size: 14px;
+  line-height: 1.6;
+  color: #374151;            /* Professional dark grey text */
+  text-align: left;
+}
+
+/* Ensure the cards look consistent */
+.summary-card {
+  background: #ffffff;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 10px;
+}
+
+/* Optional: Add a subtle highlight to the generated text area */
+#reply-result.summary-card, 
+#compose-result.summary-card {
+  border-style: solid;       /* Change to solid once content is generated */
+  background: var(--bg-soft); /* Very light blue/grey background */
+  border-color: var(--border);
+}
