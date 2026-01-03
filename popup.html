@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>IITB Mail Assistant</title>
+  <link rel="stylesheet" href="popup.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <header class="header">
+    <h1>IITB Mail Assistant</h1>
+  </header>
+
+  <main class="accordion">
+
+    <section class="accordion-item summary-accordion" id="summary-section">
+      <button class="accordion-header">
+        <span class="accordion-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span>Summarize Mail</span>
+        </span>
+        <span class="chevron"></span>
+      </button>
+
+      <div class="accordion-content">
+        <label class="field-label">Summary Mode</label>
+
+        <select id="mode" class="full-select">
+          <option value="brief">Brief</option>
+          <option value="detailed">Detailed</option>
+        </select>
+
+        <button id="summMail" class="primary-btn large-btn">
+          Summarize Mail
+        </button>
+
+        <div id="summary-status" class="status-text"></div>
+
+        <div id="summary-result" class="summary-placeholder">
+          Open an email to generate summary.
+        </div>
+      </div>
+    </section>
+
+    <section class="accordion-item" id="calendar-section">
+      <button class="accordion-header">
+        <span class="accordion-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>Add to Calendar</span>
+        </span>
+        <span class="chevron"></span>
+      </button>
+
+      <div class="accordion-content">
+        <div id="calendar-status" class="status-text"></div>
+
+        <button id="calOnly" class="primary-btn large-btn" style="margin-bottom: 12px;">
+          Check Mail for Events
+        </button>
+
+        <button id="manualEntry" class="primary-btn large-btn" style="margin-bottom: 12px; background-color: #000000; color: #ffffff; border: none;">
+          Add Event Manually
+        </button>
+
+        <div id="calendar-result"></div>
+      </div>
+    </section>
+
+    <section class="accordion-item">
+      <button class="accordion-header">
+        <span class="accordion-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="2" width="6" height="4" rx="1"></rect>
+            <path d="M4 6h16v16H4z"></path>
+            <line x1="8" y1="10" x2="16" y2="10"></line>
+            <line x1="8" y1="14" x2="16" y2="14"></line>
+          </svg>
+          <span>Daily Summary</span>
+        </span>
+        <span class="chevron"></span>
+      </button>
+      <div class="accordion-content">
+        <p class="muted">Coming soon</p>
+      </div>
+    </section>
+
+    <section class="accordion-item" id="reply-section">
+      <button class="accordion-header">
+        <span class="accordion-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 17 4 12 9 7"></polyline>
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+          </svg>
+          <span>AI Reply Generator</span>
+        </span>
+        <span class="chevron"></span>
+      </button>
+
+      <div class="accordion-content">
+        <div id="reply-status" class="status-text"></div>
+        
+        <textarea
+            id="replyPrompt"
+            class="full-select"
+            placeholder="Optional: Add instructions (e.g. be more formal, accept politely, decline)"
+        ></textarea>
+
+        <button id="replyMail" class="primary-btn large-btn">
+          Generate Reply
+        </button>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button id="shortenReply" class="primary-btn" style="flex: 1; padding: 8px; font-size: 12px; background: #000; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Shorten</button>
+          <button id="formalizeReply" class="primary-btn" style="flex: 1; padding: 8px; font-size: 12px; background: #000; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Formalize</button>
+        </div>
+
+        <div id="reply-result" class="summary-placeholder" style="margin-top: 12px;">
+          Open an email to generate a reply.
+        </div>
+      </div>
+    </section>
+
+    <section class="accordion-item" id="compose-section">
+      <button class="accordion-header">
+        <span class="accordion-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+          </svg>
+          <span>Compose New Mail</span>
+        </span>
+        <span class="chevron"></span>
+      </button>
+
+      <div class="accordion-content">
+        <div id="compose-status" class="status-text"></div>
+        
+        <textarea
+          id="composeIntent"
+          class="full-select"
+          placeholder="Describe what you want to write (e.g. Request meeting extension)">
+        </textarea>
+
+        <button id="composeMail" class="primary-btn large-btn">
+          Generate Email
+        </button>
+
+        <div id="compose-result" class="summary-placeholder">
+          Enter intent and generate email.
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>
