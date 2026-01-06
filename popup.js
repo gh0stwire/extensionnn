@@ -560,7 +560,7 @@ Intent:
 ${intent}
 `;
 
-  chrome.runtime.sendMessage(
+chrome.runtime.sendMessage(
     { type: "GEMINI_SUMMARY", prompt, endpoint: GEMINI_ENDPOINT },
     res => {
       if (!res || !res.ok) {
@@ -568,16 +568,76 @@ ${intent}
         return;
       }
 
+      // 1. Parse the Gemini output
+      let subject = "New Mail";
+      let body = res.text;
+      if (res.text.toLowerCase().includes("subject:")) {
+          const parts = res.text.split(/body:/i);
+          subject = parts[0].replace(/subject:/i, "").trim();
+          body = parts[1] ? parts[1].trim() : res.text;
+      }
+
+      // 2. Render the result in the popup (so user sees it)
       renderCompose(res.text);
       showMessage("Email ready", "compose");
+
+      // 3. SAVE THE AI CONTENT TO STORAGE
+      chrome.storage.local.set({
+        pendingCompose: {
+          subject: subject,
+          body: body,
+          timestamp: Date.now()
+        }
+      }, () => {
+        // 4. TRIGGER THE NEW WINDOW
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              // Click the Roundcube compose button
+              const btn = document.getElementById('rcmbtn107') || document.querySelector('.compose');
+              if (btn) btn.click();
+            }
+          });
+        });
+      });
     }
   );
 }
 
 function renderCompose(text) {
-  const out = document.getElementById("compose-result");
-  out.className = "summary-card";
-  out.innerHTML = `<pre style="white-space:pre-wrap">${escapeHtml(text)}</pre>`;
+    const out = document.getElementById("compose-result");
+    out.className = "summary-card";
+    
+    // Improved parsing for Gemini's structured output
+    let subject = "New Mail";
+    let body = text;
+
+    if (text.toLowerCase().includes("subject:")) {
+        // Split by "Body:" to separate subject and content
+        const parts = text.split(/body:/i);
+        subject = parts[0].replace(/subject:/i, "").trim();
+        // If there's a signature section, we can keep it or strip it as needed
+        body = parts[1] ? parts[1].trim() : text;
+    }
+
+    out.innerHTML = `
+        <div class="ai-response-text">${escapeHtml(text)}</div>
+        <button id="injectComposeBtn" class="primary-btn" style="width:100%; margin-top:10px;">
+            Inject into New Mail
+        </button>
+    `;
+
+    document.getElementById("injectComposeBtn").onclick = () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]) return;
+            chrome.tabs.sendMessage(tabs[0].id, {
+                type: "COMPOSE_NEW_MAIL",
+                subject: subject,
+                body: body
+            });
+        });
+    };
 }
 
 /* -------------------- Init -------------------- */
