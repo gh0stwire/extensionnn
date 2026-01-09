@@ -8,8 +8,6 @@ const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models
 
 let calendarChecked = false;
 let currentReplyText = ""; // To store the latest generated reply for shortening/formalizing
-// NEW: Track Event IDs globally within the popup session to prevent duplicates on edit
-let cardEventIds = {}; 
 
 /* -------------------- Utils -------------------- */
 
@@ -67,7 +65,6 @@ function renderSummary(text) {
   out.appendChild(ul);
 }
 
-// MODIFIED: Support multiple event objects
 function renderCalendarResult(data, isManual = false) {
   const out = document.getElementById("calendar-result");
   const checkBtn = document.getElementById("calOnly"); 
@@ -84,7 +81,6 @@ function renderCalendarResult(data, isManual = false) {
   if (manualBtn) manualBtn.style.display = 'none';
   if (checkBtn) checkBtn.style.display = 'none';
 
-  // Handle both single objects (manual) and arrays (multi-detection)
   const events = Array.isArray(data) ? data : (data && data.hasEvent ? [data] : []);
 
   if (events.length === 0 && !isManual) {
@@ -111,9 +107,8 @@ function renderCalendarResult(data, isManual = false) {
   }
 
   eventsToRender.forEach((event, index) => {
-    const uniqueCardId = `card-${Date.now()}-${index}`;
     formsHtml += `
-      <div id="${uniqueCardId}" class="calendar-card" style="margin-bottom: 20px; border-left: 3px solid var(--accent-dark);">
+      <div class="calendar-card" style="margin-bottom: 20px; border-left: 3px solid var(--accent-dark);">
         <div class="field-group">
           <label class="field-label">Event Title ${eventsToRender.length > 1 ? (index + 1) : ""}</label>
           <input type="text" id="edit-title-${index}" class="edit-input" placeholder="e.g. Project Sync" value="${escapeHtml(event.title)}">
@@ -132,9 +127,7 @@ function renderCalendarResult(data, isManual = false) {
           <label class="field-label">Description</label>
           <textarea id="edit-desc-${index}" class="edit-input" rows="2" placeholder="Add details...">${escapeHtml(event.description || '')}</textarea>
         </div>
-        <div class="action-container-${index}">
-          <button class="primary-btn large-btn confirm-btn" data-index="${index}" data-card-id="${uniqueCardId}" id="confirm-${index}">Confirm & Add to Calendar</button>
-        </div>
+        <button class="primary-btn large-btn confirm-btn" data-index="${index}" id="confirm-${index}">Confirm & Add to Calendar</button>
       </div>`;
   });
 
@@ -148,50 +141,30 @@ function renderCalendarResult(data, isManual = false) {
     };
   }
 
-  // Attach listeners to all confirm buttons
-  attachConfirmListeners(out);
-}
-
-function attachConfirmListeners(container) {
-  container.querySelectorAll('.confirm-btn').forEach(btn => {
+  out.querySelectorAll('.confirm-btn').forEach(btn => {
     btn.onclick = (e) => {
       const idx = e.target.getAttribute('data-index');
-      const cardId = e.target.getAttribute('data-card-id');
-      
-      const titleEl = document.getElementById(`edit-title-${idx}`);
-      const dateEl = document.getElementById(`edit-date-${idx}`);
-      const timeEl = document.getElementById(`edit-time-${idx}`);
-      const descEl = document.getElementById(`edit-desc-${idx}`);
+      const titleVal = document.getElementById(`edit-title-${idx}`).value;
+      const dateVal = document.getElementById(`edit-date-${idx}`).value;
 
-      if (!titleEl.value || !dateEl.value) {
+      if (!titleVal || !dateVal) {
         showMessage("Title and Date are required", "calendar", true);
         return;
       }
 
       const eventData = {
-        title: titleEl.value,
-        date: dateEl.value,
-        time: timeEl.value,
-        description: descEl.value
+        title: titleVal,
+        date: dateVal,
+        time: document.getElementById(`edit-time-${idx}`).value,
+        description: document.getElementById(`edit-desc-${idx}`).value
       };
       
-      if (cardEventIds[cardId]) {
-        showMessage("Updating event...", "calendar");
-        chrome.runtime.sendMessage({ 
-          type: "UPDATE_CALENDAR_EVENT", 
-          eventData, 
-          cardId, 
-          eventId: cardEventIds[cardId] 
-        });
-      } else {
-        showMessage("Check the Google login window...", "calendar");
-        chrome.runtime.sendMessage({ type: "ADD_CALENDAR_EVENT", eventData, cardId });
-      }
+      chrome.runtime.sendMessage({ type: "ADD_CALENDAR_EVENT", eventData });
       
       e.target.parentElement.innerHTML = `
-        <div class="status-waiting" style="text-align: center; padding: 10px;">
-          <p style="color: #666; font-size: 13px; line-height: 1.5;">
-            Syncing with Calendar...
+        <div class="status-success" style="text-align: center; padding: 10px;">
+          <p style="color: #000000; font-size: 13px; line-height: 1.5;">
+            Event scheduled! Complete Google sign-in if prompted.
           </p>
         </div>`;
     };
@@ -587,7 +560,7 @@ Intent:
 ${intent}
 `;
 
-  chrome.runtime.sendMessage(
+chrome.runtime.sendMessage(
     { type: "GEMINI_SUMMARY", prompt, endpoint: GEMINI_ENDPOINT },
     res => {
       if (!res || !res.ok) {
@@ -595,16 +568,76 @@ ${intent}
         return;
       }
 
+      // 1. Parse the Gemini output
+      let subject = "New Mail";
+      let body = res.text;
+      if (res.text.toLowerCase().includes("subject:")) {
+          const parts = res.text.split(/body:/i);
+          subject = parts[0].replace(/subject:/i, "").trim();
+          body = parts[1] ? parts[1].trim() : res.text;
+      }
+
+      // 2. Render the result in the popup (so user sees it)
       renderCompose(res.text);
       showMessage("Email ready", "compose");
+
+      // 3. SAVE THE AI CONTENT TO STORAGE
+      chrome.storage.local.set({
+        pendingCompose: {
+          subject: subject,
+          body: body,
+          timestamp: Date.now()
+        }
+      }, () => {
+        // 4. TRIGGER THE NEW WINDOW
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            func: () => {
+              // Click the Roundcube compose button
+              const btn = document.getElementById('rcmbtn107') || document.querySelector('.compose');
+              if (btn) btn.click();
+            }
+          });
+        });
+      });
     }
   );
 }
 
 function renderCompose(text) {
-  const out = document.getElementById("compose-result");
-  out.className = "summary-card";
-  out.innerHTML = `<pre style="white-space:pre-wrap">${escapeHtml(text)}</pre>`;
+    const out = document.getElementById("compose-result");
+    out.className = "summary-card";
+    
+    // Improved parsing for Gemini's structured output
+    let subject = "New Mail";
+    let body = text;
+
+    if (text.toLowerCase().includes("subject:")) {
+        // Split by "Body:" to separate subject and content
+        const parts = text.split(/body:/i);
+        subject = parts[0].replace(/subject:/i, "").trim();
+        // If there's a signature section, we can keep it or strip it as needed
+        body = parts[1] ? parts[1].trim() : text;
+    }
+
+    out.innerHTML = `
+        <div class="ai-response-text">${escapeHtml(text)}</div>
+        <button id="injectComposeBtn" class="primary-btn" style="width:100%; margin-top:10px;">
+            Inject into New Mail
+        </button>
+    `;
+
+    document.getElementById("injectComposeBtn").onclick = () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0]) return;
+            chrome.tabs.sendMessage(tabs[0].id, {
+                type: "COMPOSE_NEW_MAIL",
+                subject: subject,
+                body: body
+            });
+        });
+    };
 }
 
 /* -------------------- Init -------------------- */
@@ -645,85 +678,4 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   renderCalendarResult(null);
-});
-
-// FIXED: Handles Edit, Back, and Confirm toggles while preventing duplicate events
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === "CALENDAR_RESULT") {
-    showMessage("", "calendar");
-
-    const card = document.getElementById(msg.cardId);
-    if (!card) return;
-
-    const waitingArea = card.querySelector('.status-waiting') || card.querySelector(`[class^="action-container"]`);
-    if (!waitingArea) return;
-
-    if (msg.status === "success") {
-      // FIX LOGIC: check if we ALREADY had an ID for this card BEFORE this message arrived
-      const isActuallyUpdated = cardEventIds[msg.cardId] ? true : false;
-      
-      // Save/Overwrite the event ID
-      if (msg.eventId) {
-        cardEventIds[msg.cardId] = msg.eventId;
-      }
-
-      // Lock inputs
-      card.querySelectorAll('input, textarea').forEach(el => {
-        el.disabled = true;
-        el.style.opacity = "0.8";
-      });
-
-      // Show success badge and Edit button (Uses black classes from CSS)
-      waitingArea.innerHTML = `
-        <div class="success-badge-container" style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-top: 10px;">
-          <span class="success-text-icon" style="color: #166534; font-weight: 600; font-size: 13px;">
-            ✓ ${isActuallyUpdated ? 'Updated in Calendar' : 'Added to Calendar'}
-          </span>
-          <button class="edit-btn">Edit</button>
-        </div>
-      `;
-      card.style.borderColor = "#bbf7d0";
-
-      // Toggle back to edit mode
-      waitingArea.querySelector('.edit-btn').onclick = () => {
-        card.querySelectorAll('input, textarea').forEach(el => el.disabled = false);
-        const idx = card.querySelector('input').id.split('-').pop();
-        
-        waitingArea.innerHTML = `
-          <div class="edit-actions-group" style="display: flex; gap: 10px; margin-top: 10px;">
-            <button class="primary-btn large-btn confirm-btn" style="flex: 2;" data-index="${idx}" data-card-id="${msg.cardId}">Confirm & Sync</button>
-            <button class="back-btn">Back</button>
-          </div>
-        `;
-
-        waitingArea.querySelector('.back-btn').onclick = () => {
-          // Re-lock without resending to server (simulate success)
-          chrome.runtime.onMessage.dispatch({ type: "CALENDAR_RESULT", status: "success", cardId: msg.cardId });
-        };
-
-        attachConfirmListeners(waitingArea);
-      };
-
-    } else {
-      // Failure logic with Instant Retry
-      const retryData = {
-        title: card.querySelector(`input[id^="edit-title"]`).value,
-        date: card.querySelector(`input[id^="edit-date"]`).value,
-        time: card.querySelector(`input[id^="edit-time"]`).value,
-        description: card.querySelector(`textarea[id^="edit-desc"]`).value
-      };
-
-      waitingArea.innerHTML = `
-        <div style="text-align: center; padding: 10px; border: 1px solid #fee2e2; border-radius: 8px; background: #fff5f5;">
-          <p style="color: #991b1b; font-size: 12px; margin-bottom: 5px;">❌ Failed: ${msg.message || "Error"}</p>
-          <button class="instant-retry-btn" style="background:#000; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:600;">Try Again</button>
-        </div>
-      `;
-      
-      waitingArea.querySelector('.instant-retry-btn').onclick = () => {
-        waitingArea.innerHTML = `<div class="status-waiting" style="text-align: center; padding: 10px;"><p style="color: #666; font-size: 13px;">Retrying...</p></div>`;
-        chrome.runtime.sendMessage({ type: "ADD_CALENDAR_EVENT", eventData: retryData, cardId: msg.cardId });
-      };
-    }
-  }
 });

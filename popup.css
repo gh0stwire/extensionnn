@@ -14,7 +14,8 @@
 
 body {
   margin: 0;
-  width: 380px;
+  width: 100%;
+  min-width: 30px;
   font-family: 'Inter', sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -416,101 +417,4 @@ textarea.edit-input {
   border-style: solid;       /* Change to solid once content is generated */
   background: var(--bg-soft); /* Very light blue/grey background */
   border-color: var(--border);
-}
-
-/* --- CALENDAR SUCCESS/FAILURE MESSAGE STYLING --- */
-.status-success {
-  background-color: var(--bg-soft);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 10px;
-  text-align: center;
-}
-
-.status-success p {
-  margin: 0;
-  color: #000000; /* Pure black text as requested */
-  font-family: 'Inter', sans-serif;
-}
-
-.status-error {
-  background-color: #fef2f2; /* Subtle light red alert background */
-  border: 1px solid #fee2e2;
-  border-radius: 12px;
-  padding: 20px;
-  margin-top: 10px;
-  text-align: center;
-}
-
-.status-error p {
-  margin: 0;
-  color: #991b1b; /* Deep red for visibility of the error */
-  font-family: 'Inter', sans-serif;
-}
-
-/* Ensure the success icons inside the JS rendering match the black theme */
-.status-success p:first-child {
-  font-weight: 600;
-  font-size: 16px;
-  margin-bottom: 8px;
-}
-
-/* Container for the success message and edit button */
-.success-badge-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  margin-top: 10px;
-}
-
-.success-text-icon {
-  color: #166534;
-  font-weight: 600;
-  font-size: 13px;
-}
-
-/* Styled BLACK Edit Button */
-.edit-btn {
-  background: #000000;
-  color: #ffffff;
-  border: none;
-  padding: 5px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  transition: opacity 0.2s;
-}
-
-.edit-btn:hover {
-  opacity: 0.8;
-}
-
-/* Group for Confirm/Back buttons */
-.edit-actions-group {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-/* Styled BLACK Back Button */
-.back-btn {
-  flex: 1;
-  background: #000000;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  transition: opacity 0.2s;
-}
-
-.back-btn:hover {
-  opacity: 0.8;
 }

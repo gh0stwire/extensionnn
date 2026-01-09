@@ -20,6 +20,58 @@ function cleanMailBody(text) {
 
 /* -------------------- Core Extraction -------------------- */
 
+// Check on every load if there's a pending injection
+chrome.storage.local.get(['pendingCompose'], (result) => {
+  if (result.pendingCompose) {
+    const { subject, body, timestamp } = result.pendingCompose;
+    // Only inject if the request is fresh (less than 30 seconds old)
+    if (Date.now() - timestamp < 30000) {
+      handleNewComposeInjection(subject, body);
+    }
+    // Clear it so it doesn't double-inject
+    chrome.storage.local.remove('pendingCompose');
+  }
+});
+
+function handleNewComposeInjection(subject, body) {
+  let attempts = 0;
+  const timer = setInterval(() => {
+    attempts++;
+    
+    const subjectField = document.querySelector('input[name="_subject"]');
+    const bodyIframe = document.getElementById('composebody_ifr'); // TinyMCE Iframe
+    const bodyTextarea = document.getElementById('composebody');
+
+    if (subjectField && (bodyIframe || bodyTextarea)) {
+      // 1. Fill Subject
+      subjectField.value = subject;
+
+      // 2. Fill Body
+      if (bodyIframe) {
+        try {
+          const doc = bodyIframe.contentDocument || bodyIframe.contentWindow.document;
+          // Convert newlines to <br> because this is an HTML editor
+          doc.body.innerHTML = body.replace(/\n/g, '<br>');
+        } catch (e) { console.error("Iframe access blocked", e); }
+      } else {
+        bodyTextarea.value = body;
+      }
+
+      clearInterval(timer);
+    }
+
+    if (attempts > 50) clearInterval(timer);
+  }, 500);
+}
+
+// Keep your existing message listener but add the storage fallback
+chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+  if (req.type === "COMPOSE_NEW_MAIL") {
+    handleNewComposeInjection(req.subject, req.body);
+    sendResponse({ ok: true });
+  }
+});
+
 function tryExtractMailBody() {
   let body = "";
 
@@ -136,7 +188,60 @@ function fillReplyEditor(replyText) {
   }, 300);
 }
 
+async function injectNewCompose(subject, body) {
+  // 1. Locate the "Compose" button and click it
+  const composeBtn = document.getElementById('rcmbtn107') || 
+                     document.querySelector('a.compose[title="Create a new message"]');
+  
+  if (composeBtn) {
+    composeBtn.click();
+  } else {
+    console.error("IITB Assistant: Could not find Compose button.");
+    return;
+  }
 
+  // 2. Wait for the editor fields to load (Polling)
+  let attempts = 0;
+  const timer = setInterval(() => {
+    attempts++;
+    
+    const subjectField = document.getElementById('compose-subject') || 
+                         document.querySelector('input[name="_subject"]');
+    
+    // Check for the TinyMCE Iframe (HTML mode)
+    const bodyIframe = document.getElementById('composebody_ifr');
+    // Check for the Standard Textarea (Plain text mode)
+    const bodyTextarea = document.getElementById('composebody');
+
+    if (subjectField && (bodyIframe || bodyTextarea)) {
+      clearInterval(timer);
+
+      // Fill Subject
+      subjectField.value = subject || "";
+
+      // Fill Body
+      if (bodyIframe) {
+        try {
+          const doc = bodyIframe.contentDocument || bodyIframe.contentWindow.document;
+          // Convert newlines to <br> for TinyMCE HTML mode
+          const htmlBody = (body || "").replace(/\n/g, '<br>');
+          doc.body.innerHTML = htmlBody;
+        } catch (e) {
+          console.error("Failed to inject into HTML editor:", e);
+        }
+      } else if (bodyTextarea) {
+        bodyTextarea.value = body || "";
+      }
+      
+      console.log("IITB Assistant: Fields injected successfully.");
+    }
+
+    if (attempts > 30) {
+      clearInterval(timer);
+      console.warn("IITB Assistant: Timeout waiting for compose fields.");
+    }
+  }, 500);
+}
 
 
 
@@ -144,26 +249,30 @@ function fillReplyEditor(replyText) {
 
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 
-  /* ---------- Existing: mail extraction ---------- */
+  /* ---------- mail extraction ---------- */
   if (req?.type === "GET_OPENED_MAIL") {
     waitForMailBody().then(body => {
       if (!body) {
         sendResponse({ ok: false, error: "No opened mail detected" });
         return;
       }
-
-      sendResponse({
-        ok: true,
-        mail: { body }
-      });
+      sendResponse({ ok: true, mail: { body } });
     });
-
-    return true;
+    return true; 
   }
 
-  /* ---------- NEW: fill reply ---------- */
+  /* ---------- fill reply ---------- */
   if (req?.type === "FILL_REPLY") {
     fillReplyEditor(req.replyText);
+    sendResponse({ ok: true });
   }
+
+  /* ---------- Inject New Compose ---------- */
+  if (req?.type === "COMPOSE_NEW_MAIL") {
+    injectNewCompose(req.subject, req.body);
+    sendResponse({ ok: true });
+  }
+
+  return true;
 });
 
