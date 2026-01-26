@@ -18,9 +18,9 @@ function cleanMailBody(text) {
     .trim();
 }
 
-/* -------------------- Core Extraction -------------------- */
+/* -------------------- Core Extraction & Storage Check -------------------- */
 
-// Check on every load if there's a pending injection
+// Check on every load if there's a pending injection (from Version 2/Automation)
 chrome.storage.local.get(['pendingCompose'], (result) => {
   if (result.pendingCompose) {
     const { subject, body, timestamp } = result.pendingCompose;
@@ -38,39 +38,106 @@ function handleNewComposeInjection(subject, body) {
   const timer = setInterval(() => {
     attempts++;
     
-    const subjectField = document.querySelector('input[name="_subject"]');
-    const bodyIframe = document.getElementById('composebody_ifr'); // TinyMCE Iframe
-    const bodyTextarea = document.getElementById('composebody');
+    // Updated Selectors for Roundcube (covers both Compose and Reply views)
+    const subjectField = document.getElementById('compose-subject') || 
+                         document.querySelector('input[name="_subject"]');
+    
+    // Check for the TinyMCE Iframe (HTML mode) - Roundcube uses ID 'composebody_ifr'
+    const bodyIframe = document.getElementById('composebody_ifr') || 
+                       document.getElementById('_message_ifr'); 
+                       
+    // Check for the Standard Textarea (Plain text mode) - Roundcube uses ID 'composebody' or name '_message'
+    const bodyTextarea = document.getElementById('composebody') || 
+                         document.querySelector('textarea[name="_message"]');
 
-    if (subjectField && (bodyIframe || bodyTextarea)) {
-      // 1. Fill Subject
+    // Logic: Subject is only filled if it exists and a value was provided (avoids clearing reply subjects)
+    if (subjectField && subject) {
       subjectField.value = subject;
+    }
 
+    if (bodyIframe || bodyTextarea) {
       // 2. Fill Body
       if (bodyIframe) {
         try {
           const doc = bodyIframe.contentDocument || bodyIframe.contentWindow.document;
-          // Convert newlines to <br> because this is an HTML editor
-          doc.body.innerHTML = body.replace(/\n/g, '<br>');
-        } catch (e) { console.error("Iframe access blocked", e); }
-      } else {
-        bodyTextarea.value = body;
+          // Ensure the iframe body exists before writing
+          if (doc && doc.body) {
+             // Convert newlines to <br> because this is an HTML editor
+             const htmlBody = (body || "").replace(/\n/g, '<br>');
+             
+             // If it's a reply (subject is null), we prepend to keep the thread below
+             if (subject === null) {
+                doc.body.innerHTML = htmlBody + "<br><br>" + doc.body.innerHTML;
+             } else {
+                doc.body.innerHTML = htmlBody;
+             }
+             
+             console.log("IITB Assistant: Fields injected into Iframe.");
+             clearInterval(timer);
+          }
+        } catch (e) { 
+          console.error("Iframe access blocked", e); 
+        }
+      } else if (bodyTextarea) {
+        if (subject === null) {
+            bodyTextarea.value = (body || "") + "\n\n" + bodyTextarea.value;
+        } else {
+            bodyTextarea.value = body || "";
+        }
+        console.log("IITB Assistant: Fields injected into Textarea.");
+        clearInterval(timer);
       }
-
-      clearInterval(timer);
     }
 
-    if (attempts > 50) clearInterval(timer);
+    if (attempts > 60) { // Increased to 30 seconds to survive slow URL loads
+      clearInterval(timer);
+      console.warn("IITB Assistant: Timeout waiting for compose fields.");
+    }
   }, 500);
 }
 
-// Keep your existing message listener but add the storage fallback
-chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
-  if (req.type === "COMPOSE_NEW_MAIL") {
-    handleNewComposeInjection(req.subject, req.body);
-    sendResponse({ ok: true });
+async function injectNewCompose(subject, body) {
+  // Logic: Differentiate between Reply and New Compose
+  const isReply = (subject === null);
+
+  if (isReply) {
+    // 1. Find the REAL reply button in the toolbar
+    const replyBtn = 
+        document.querySelector('a.button.reply[title="Reply to sender"]') || 
+        document.querySelector('a.button.reply') ||
+        document.getElementById('rcmbtn124') ||
+        document.querySelector('.toolbar a.reply');
+
+    if (replyBtn) {
+        chrome.storage.local.set({
+            pendingCompose: { subject: null, body: body, timestamp: Date.now() }
+        }, () => {
+            replyBtn.click();
+        });
+    } else {
+        // If no button found, maybe the reply window is already open?
+        handleNewComposeInjection(null, body);
+    }
+  } else {
+    // 1. Locate the "Compose" button and click it
+    const composeBtn = document.getElementById('rcmbtn107') || 
+                        document.querySelector('a.compose[title="Create a new message"]') ||
+                        document.querySelector('a.compose');
+    
+    if (composeBtn) {
+      // Save to storage first to ensure it survives the navigation
+      chrome.storage.local.set({
+        pendingCompose: { subject, body, timestamp: Date.now() }
+      }, () => {
+        composeBtn.click();
+      });
+    } else {
+      // If no button is found, check if we are already in the compose view
+      console.log("IITB Assistant: No compose button found, checking if fields already exist...");
+      handleNewComposeInjection(subject, body);
+    }
   }
-});
+}
 
 function tryExtractMailBody() {
   let body = "";
@@ -128,7 +195,6 @@ function findReplyButton(root = document) {
   );
 }
 
-
 function findReplyEditor(root = document) {
   return (
     root.querySelector('textarea#composebody') ||
@@ -138,112 +204,34 @@ function findReplyEditor(root = document) {
   );
 }
 
-
 function fillReplyEditor(replyText) {
-
-  // 1️⃣ Find the REAL reply button (from your DOM dump)
-  const replyBtn = document.querySelector(
-    'a.reply[title="Reply to sender"]'
-  );
+  // Manual trigger for FILL_REPLY message type
+  const replyBtn = 
+    document.querySelector('a.button.reply[title="Reply to sender"]') || 
+    document.querySelector('a.button.reply') ||
+    document.getElementById('rcmbtn124') ||
+    document.querySelector('.toolbar a.reply');
 
   if (!replyBtn) {
-    console.warn("Reply button not found");
+    console.error("IITB Assistant: Reply button not found.");
     return;
   }
 
-  // 2️⃣ Trigger Roundcube reply exactly as UI does
-  replyBtn.dispatchEvent(
-    new MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    })
-  );
+  replyBtn.click();
 
-  // 3️⃣ Wait for compose view + editor
   let attempts = 0;
-  const maxAttempts = 20;
-
   const timer = setInterval(() => {
     attempts++;
-
-    // Roundcube compose editor locations
-    const editor =
-      document.querySelector('textarea#composebody') ||
-      document.querySelector('textarea[name="_message"]') ||
-      document.querySelector('textarea[name="body"]');
+    const editor = document.querySelector('textarea#composebody') || 
+                   document.querySelector('textarea[name="_message"]');
 
     if (editor) {
-      editor.focus();
-      editor.value = replyText;
-      editor.selectionStart = editor.selectionEnd = editor.value.length;
+      editor.value = replyText + "\n\n" + editor.value;
       clearInterval(timer);
-      return;
     }
-
-    if (attempts >= maxAttempts) {
-      clearInterval(timer);
-      console.warn("Compose editor not found after reply");
-    }
-  }, 300);
-}
-
-async function injectNewCompose(subject, body) {
-  // 1. Locate the "Compose" button and click it
-  const composeBtn = document.getElementById('rcmbtn107') || 
-                     document.querySelector('a.compose[title="Create a new message"]');
-  
-  if (composeBtn) {
-    composeBtn.click();
-  } else {
-    console.error("IITB Assistant: Could not find Compose button.");
-    return;
-  }
-
-  // 2. Wait for the editor fields to load (Polling)
-  let attempts = 0;
-  const timer = setInterval(() => {
-    attempts++;
-    
-    const subjectField = document.getElementById('compose-subject') || 
-                         document.querySelector('input[name="_subject"]');
-    
-    // Check for the TinyMCE Iframe (HTML mode)
-    const bodyIframe = document.getElementById('composebody_ifr');
-    // Check for the Standard Textarea (Plain text mode)
-    const bodyTextarea = document.getElementById('composebody');
-
-    if (subjectField && (bodyIframe || bodyTextarea)) {
-      clearInterval(timer);
-
-      // Fill Subject
-      subjectField.value = subject || "";
-
-      // Fill Body
-      if (bodyIframe) {
-        try {
-          const doc = bodyIframe.contentDocument || bodyIframe.contentWindow.document;
-          // Convert newlines to <br> for TinyMCE HTML mode
-          const htmlBody = (body || "").replace(/\n/g, '<br>');
-          doc.body.innerHTML = htmlBody;
-        } catch (e) {
-          console.error("Failed to inject into HTML editor:", e);
-        }
-      } else if (bodyTextarea) {
-        bodyTextarea.value = body || "";
-      }
-      
-      console.log("IITB Assistant: Fields injected successfully.");
-    }
-
-    if (attempts > 30) {
-      clearInterval(timer);
-      console.warn("IITB Assistant: Timeout waiting for compose fields.");
-    }
+    if (attempts >= 20) clearInterval(timer);
   }, 500);
 }
-
-
 
 /* -------------------- Message Handler -------------------- */
 
@@ -256,9 +244,14 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         sendResponse({ ok: false, error: "No opened mail detected" });
         return;
       }
-      sendResponse({ ok: true, mail: { body } });
+
+      sendResponse({
+        ok: true,
+        mail: { body }
+      });
     });
-    return true; 
+
+    return true; // Keep channel open for async
   }
 
   /* ---------- fill reply ---------- */
@@ -267,8 +260,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     sendResponse({ ok: true });
   }
 
-  /* ---------- Inject New Compose ---------- */
+  /* ---------- Inject New Compose (From automation flow) ---------- */
   if (req?.type === "COMPOSE_NEW_MAIL") {
+    // This handler now serves both New Compose and Reply injections
     injectNewCompose(req.subject, req.body);
     sendResponse({ ok: true });
   }
@@ -276,3 +270,36 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   return true;
 });
 
+/* ---------- Redundant Logic Preservation (Teammate Version) ---------- */
+
+function teammate_tryExtractMailBody() {
+  let body = "";
+  const iframes = Array.from(document.querySelectorAll("iframe"));
+  for (const f of iframes) {
+    try {
+      const doc = f.contentDocument;
+      if (!doc || !doc.body) continue;
+      const text = doc.body.innerText?.trim() || "";
+      if (text.length > body.length) body = text;
+    } catch {}
+  }
+  return body;
+}
+
+/* -------------------- One-Time Session Trigger -------------------- */
+
+let hasOpenedOnce = false;
+
+document.addEventListener('click', (e) => {
+    if (hasOpenedOnce) return;
+
+    const isMailItem = e.target.closest('tr[id^="rcmrow"]') || 
+                        e.target.closest('.message-list-item') ||
+                        e.target.closest('.messagelist tr');
+
+    if (isMailItem) {
+        console.log("IITB Assistant: First mail detected. Opening Side Panel...");
+        hasOpenedOnce = true; 
+        chrome.runtime.sendMessage({ type: "OPEN_SIDEBAR" });
+    }
+});
