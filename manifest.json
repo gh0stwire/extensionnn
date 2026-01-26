@@ -1,7 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Mail IITB",
-  "version": "1.1",
+  "version": "3.3",
+  "action": {
+    "default_title": "open IITB Mail Assistant"
+  },
   "permissions": [
     "activeTab",
     "tabs",
@@ -11,19 +14,17 @@
     "sidePanel",
     "notifications"
   ],
-  "side_panel": {
-    "default_path": "popup.html"
-  },
-  "action": {
-    "default_title": "open IITB Mail Assistant"
-  },
   "host_permissions": [
     "*://webmail.iitb.ac.in/*",
     "*://*.iitb.ac.in/*",
-    "https://www.googleapis.com/*"
+    "https://www.googleapis.com/*",
+    "http://127.0.0.1:8000/*"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAouR3GrJbUBeg1/6Fx5rGD6vWboL0M+ts8fT0B+2r39+QZ9hpOK3FR4MFMQan9uLa2UOYxmTcH+eAogQ19leabjnueZEHQg6lkOxxBp5K67plR1TPnTiJHAwnpHjR2HjupuOeAXnSM6sbwSGRv93H87a0YcafQerb+juDymQw/Iva3fk6WGrQKLu7LjQScI98XPdZwo/oIPWFLVn/VWK1KdzJ+2RswYtcYFewenqlX+y8ODWuDt5CZa+R/IV5GjY6dQvP9esxymeiqXObNgtzUtGLAMbvCLGZrwpHI4+TlVVwmUo6aAlZAOd6TjVO61mIinFDAH/Jg8pKvd0HwS5Y9wIDAQAB",
   "oauth2": {
